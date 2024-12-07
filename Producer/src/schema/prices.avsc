@@ -1,0 +1,55 @@
+{
+    "type": "record",
+    "name": "message",
+    "namespace": "FinanceProducer",
+    "fields": [{
+        "name": "data",
+        "type": {
+            "type": "array",
+            "items": {
+                "type": "record",
+                "name": "data",
+                "fields": [{
+                    "name": "c",
+                    "type":[
+                        {
+                        "type": "array",
+                        "items": ["null", "string"],
+                        "default": []
+                        },
+                          "null"
+                    ],
+                    "doc": "List of trade conditions."
+                },
+                {
+                    "name": "p",
+                    "type":"double",
+                    "doc": "Last price."
+                },
+                {
+                    "name":"s",
+                    "type":"string",
+                    "doc":"Symbol."
+                },
+                {
+                    "name":"t",
+                    "type":"long",
+                    "doc":"UNIX milliseconds timestamp."
+                },
+                {
+                    "name":"v",
+                    "type":"double",
+                    "doc":"Volume."
+                }]
+             },
+      "doc" : "Crypto messages"
+    },
+    "doc"  : "Contains data inside a message"
+  }, 
+  {
+    "name" : "type",
+    "type" : "string",
+    "doc"  : "Type of message"
+  } ],
+  "doc" : "Schema for incoming Finnhub messages"
+}
