@@ -35,8 +35,7 @@ class Consumer:
         for message in self.consumer:
             decoded = avro_decode(message_value=message.value, schema=self.schema)
             logger.info(decoded)
-
-        return
+            yield decoded
 
 
 if __name__ == "__main__":

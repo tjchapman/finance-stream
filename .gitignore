@@ -4,3 +4,4 @@ venv
 .DS_Store
 poetry.lock
 .ruff_cache
+TODO.md
