@@ -1,4 +1,6 @@
+import avro.io
 import finnhub
+from io import BytesIO
 
 
 def create_client(token: str):
@@ -17,3 +19,14 @@ def check_symbol_exists(exchange: str, ticker: str, finnhub_client):
             return True
 
     return False
+
+
+def avro_encode(data, schema):
+    """
+    Encode message as avro format
+    """
+    writer = avro.io.DatumWriter(schema)
+    bytes_writer = BytesIO()
+    encoder = avro.io.BinaryEncoder(bytes_writer)
+    writer.write(data, encoder)
+    return bytes_writer.getvalue()

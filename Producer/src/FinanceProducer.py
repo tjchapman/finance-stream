@@ -1,11 +1,13 @@
 import json
 import logging
 import websocket
+import avro.schema
 from os import getenv
 from ast import literal_eval
 from dotenv import load_dotenv
-from utils.util import create_client, check_symbol_exists
-from utils.kafka import kafka_producer
+from kafka import KafkaProducer
+from utils.util import create_client, check_symbol_exists, avro_encode
+
 
 logger = logging.getLogger(__name__)
 FORMAT = "%(levelname)s\t%(asctime)s\t%(funcName)s\t%(message)s\t"
@@ -28,21 +30,32 @@ class FinanceProducer:
         self.KAFKA_TOPIC_NAME = getenv("KAFKA_TOPIC_NAME")
 
         self.finnhub_client = create_client(token=self.FINNHUB_KEY)
-        self.kafka = kafka_producer(
-            kafka_server=f"{self.KAFKA_SERVER}:{self.KAFKA_PORT}"
+        self.kafka = KafkaProducer(
+            bootstrap_servers=f"{self.KAFKA_SERVER}:{self.KAFKA_PORT}"
+        )
+
+        self.schema = avro.schema.Parse(
+            open("Producer/src/schema/prices.avsc", "r").read()
         )
 
     def on_message(self, ws, message):
         message = json.loads(message)
-        logger.info(message)
-
-        self.kafka.send(self.KAFKA_TOPIC_NAME, json.dumps(message).encode("utf-8"))
+        logger.info(f"Encoding and sending record to Kafka: {message}")
+        encoded_message = avro_encode(
+            {"data": message["data"], "type": message["type"]}, self.schema
+        )
+        encoded_message = json.dumps(message).encode("utf-8")
+        logger.info(f"Sending record to Kafka: {encoded_message}")
+        self.kafka.send(self.KAFKA_TOPIC_NAME, encoded_message)
+        return
 
     def on_error(self, ws, error):
         logger.info(error)
+        return
 
     def on_close(self, ws):
         logger.info("### closed ###")
+        return
 
     def on_open(self, ws, exchange: str = "BINANCE"):
         for ticker in self.TICKERS:
@@ -67,6 +80,7 @@ class FinanceProducer:
         )
         self.ws.on_open = self.on_open
         self.ws.run_forever()
+        return
 
 
 if __name__ == "__main__":
