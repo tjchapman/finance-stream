@@ -11,6 +11,9 @@ ruff = "^0.8.2"
 finnhub-python = "^2.4.22"
 python-dotenv = "^1.0.1"
 websocket-client = "^1.8.0"
+kafka-python = "^2.0.2"
+avro-python3 = "^1.10.2"
+pre-commit = "^4.0.1"
 
 
 [build-system]
