@@ -44,7 +44,7 @@ class FinanceProducer:
         encoded_message = avro_encode(
             {"data": message["data"], "type": message["type"]}, self.schema
         )
-        encoded_message = json.dumps(message).encode("utf-8")
+        # encoded_message = json.dumps(message).encode("utf-8")
         logger.info(f"Sending record to Kafka: {encoded_message}")
         self.kafka.send(self.KAFKA_TOPIC_NAME, encoded_message)
         return
