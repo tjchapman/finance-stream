@@ -49,24 +49,56 @@ def create_and_set_keyspace(keyspace: str, session):
     return
 
 
-def create_cassandra_tables(session):
+def create_raw_cassandra_table(session):
     try:
         session.execute("""
         CREATE TABLE IF NOT EXISTS crypto_prices (
-            uuid uuid,
-            symbol text,
-            trade_conditions text,
+            id uuid,
+            type text,
+            conditions text,
             price double,
+            symbol text,
+            crypto_timestamp timestamp,
             volume double,
-            trade_timestamp timestamp,
-            ingest_timestamp timestamp,
-            PRIMARY KEY((symbol),trade_timestamp))
-        WITH CLUSTERING ORDER BY (trade_timestamp DESC);
+            proc_time timestamp,
+            PRIMARY KEY((symbol),crypto_timestamp))
+        WITH CLUSTERING ORDER BY (crypto_timestamp DESC);
         """)
 
         session.execute("""
-        CREATE INDEX IF NOT EXISTS ON crypto_prices (uuid);
+        CREATE INDEX IF NOT EXISTS ON crypto_prices (id);
         """)
+
+        logger.info("Raw table successfully created")
+
+    except Exception as e:
+        logger.error(f"Failed to create table: {e}")
+        raise
+
+    return
+
+
+def create_agg_cassandra_table(session):
+    try:
+        session.execute("""
+        CREATE TABLE IF NOT EXISTS crypto_prices_agg (
+             id uuid,
+             start_time timestamp,
+             end_time timestamp,
+             symbol text,
+             average_price double,
+             average_volume double,
+             proc_time timestamp,
+             PRIMARY KEY((id),proc_time))
+        WITH CLUSTERING ORDER BY 
+        (proc_time DESC);
+        """)
+
+        session.execute("""
+        CREATE INDEX IF NOT EXISTS ON crypto_prices_agg (symbol);
+        """)
+
+        logger.info("Aggregated table successfully created")
 
     except Exception as e:
         logger.error(f"Failed to create table: {e}")
@@ -80,4 +112,24 @@ session = connect_to_cassandra(
 )
 
 create_and_set_keyspace(keyspace="crypto", session=session)
-create_cassandra_tables(session=session)
+# session.execute("DROP TABLE IF EXISTS crypto_prices")
+create_raw_cassandra_table(session=session)
+create_agg_cassandra_table(session=session)
+
+
+## Testing results went to DB
+res = session.execute("""
+SELECT * FROM crypto_prices limit 100;
+""")
+
+print(res)
+for row in res:
+    print(row)
+
+res = session.execute("""
+SELECT * FROM crypto_prices_agg limit 100;
+""")
+
+print(res)
+for row in res:
+    print(row)

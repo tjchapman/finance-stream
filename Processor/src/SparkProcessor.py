@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from pyspark.sql import SparkSession
 from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.types import StructType, StructField, StringType
-from pyspark.sql.functions import explode, col, current_timestamp, expr, from_unixtime, window, avg
+from pyspark.sql.functions import explode, col, current_timestamp, expr, from_unixtime, window, avg, to_timestamp
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ spark =  SparkSession\
     .appName("FinanceStream")\
     .config("spark.jars.packages", ",".join(packages))\
     .config('spark.cassandra.connection.host', CASSANDRA_HOST)\
-    .config('spark.cassandra.auth.usernane', CASSANDRA_USERNAME)\
+    .config('spark.cassandra.auth.username', CASSANDRA_USERNAME)\
     .config('spark.cassandra.auth.password', CASSANDRA_PASSWORD)\
     .getOrCreate()
 
@@ -71,13 +71,19 @@ flattend_stream = avro_stream.select(
     col("exploded_data.c").alias("conditions"),
     col("exploded_data.p").alias("price"),
     col("exploded_data.s").alias("symbol"), # maybe seperate out EXCHANGE:SYMBOL
-    from_unixtime(col("exploded_data.t")/1000).alias("timestamp"),
+    from_unixtime(col("exploded_data.t")/1000).alias("crypto_timestamp"),
     col("exploded_data.v").alias("volume"),
-    current_timestamp().alias("proc_time"),
+    current_timestamp().alias("proc_time")
 )
 
-aggregated_stream = flattend_stream.groupBy(
-    window(col("timestamp"), "10 seconds"),
+# Apply watermark to handle late data
+flattend_stream_with_watermark = flattend_stream \
+    .withColumn("crypto_timestamp", to_timestamp(col("crypto_timestamp"))) \
+    .withWatermark("crypto_timestamp", "10 seconds") 
+
+# Aggregated stream from watermarked flat
+aggregated_stream = flattend_stream_with_watermark.groupBy(
+    window(col("crypto_timestamp"), "10 seconds"),
     col("symbol")
 ).agg(
     avg("price").alias("average_price"),
@@ -90,18 +96,46 @@ aggregated_stream = flattend_stream.groupBy(
     col("average_volume")
 )
 
+# Add uuid and process time to aggregated stream
+final_stream = aggregated_stream.select(
+    expr("uuid()").alias("id"),
+    col("start_time"), 
+    col("end_time"),  
+    col("symbol"),
+    col("average_price"),
+    col("average_volume"),
+    current_timestamp().alias("proc_time")
+)
+
+# Insert Raw Data into Cassandra
+flattend_stream_query = flattend_stream.writeStream \
+    .format("org.apache.spark.sql.cassandra") \
+    .options(table="crypto_prices", keyspace="crypto") \
+    .option("checkpointLocation", "/tmp/checkpoints/crypto_prices") \
+    .start()
+
+# Insert Aggregated Data into Cassandra
+final_stream_query = final_stream.writeStream \
+    .format("org.apache.spark.sql.cassandra") \
+    .options(table="crypto_prices_agg", keyspace="crypto") \
+    .option("checkpointLocation", "/tmp/checkpoints/crypto_prices_agg") \
+    .start()
+
+flattend_stream_query.awaitTermination()
+final_stream_query.awaitTermination()
 
 
-# Write stream to console for testing TODO: remove this
+# TODO: remove this
+# Write stream to console for testing 
 # flattend_stream.writeStream \
 #     .format("console") \
 #     .outputMode("append") \
 #     .start()\
 #     .awaitTermination()
 
-aggregated_stream.writeStream \
-    .format("console") \
-    .outputMode("update") \
-    .option("truncate", "false")\
-    .start()\
-    .awaitTermination()
+# final_stream.writeStream \
+#     .format("console") \
+#     .outputMode("update") \
+#     .option("truncate", "false")\
+#     .start()\
+#     .awaitTermination()
