@@ -15,6 +15,7 @@ kafka-python = "^2.0.2"
 avro-python3 = "^1.10.2"
 pre-commit = "^4.0.1"
 pyspark = "^3.5.3"
+cassandra-driver = "^3.29.2"
 
 
 [build-system]

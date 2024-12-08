@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from pyspark.sql import SparkSession
 from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.types import StructType, StructField, StringType
-from pyspark.sql.functions import explode, col, current_timestamp, expr, from_unixtime
+from pyspark.sql.functions import explode, col, current_timestamp, expr, from_unixtime, window, avg
 
 
 logger = logging.getLogger(__name__)
@@ -21,6 +21,10 @@ KAFKA_SERVER = getenv("KAFKA_SERVER")
 KAFKA_PORT = getenv("KAFKA_PORT")
 KAFKA_TOPIC_NAME = getenv("KAFKA_TOPIC_NAME")
 
+CASSANDRA_USERNAME = getenv("CASSANDRA_USERNAME")
+CASSANDRA_PASSWORD = getenv("CASSANDRA_PASSWORD")
+CASSANDRA_HOST = getenv("CASSANDRA_HOST")
+
 with open("Producer/src/schema/prices.avsc", "r") as schema_file:
     schema = schema_file.read()
 
@@ -34,14 +38,13 @@ spark =  SparkSession\
     .builder\
     .appName("FinanceStream")\
     .config("spark.jars.packages", ",".join(packages))\
+    .config('spark.cassandra.connection.host', CASSANDRA_HOST)\
+    .config('spark.cassandra.auth.usernane', CASSANDRA_USERNAME)\
+    .config('spark.cassandra.auth.password', CASSANDRA_PASSWORD)\
     .getOrCreate()
 
 logger.info('Spark connection created successfully.')
 
-    #  .config('spark.cassandra.connection.host', 'localhost')\
-    # .config("spark.executor.memory", "512m")\
-    # .config("spark.executor.cores", "1")\
-    # .config("spark.driver.cores", "1")\
 
 # Stream from Kafka into Spark
 kafka_stream = spark\
@@ -73,12 +76,32 @@ flattend_stream = avro_stream.select(
     current_timestamp().alias("proc_time"),
 )
 
+aggregated_stream = flattend_stream.groupBy(
+    window(col("timestamp"), "10 seconds"),
+    col("symbol")
+).agg(
+    avg("price").alias("average_price"),
+    avg("volume").alias("average_volume")
+).select(
+    col("window.start").alias("start_time"), 
+    col("window.end").alias("end_time"),  
+    col("symbol"),
+    col("average_price"),
+    col("average_volume")
+)
 
 
 
 # Write stream to console for testing TODO: remove this
-flattend_stream.writeStream \
+# flattend_stream.writeStream \
+#     .format("console") \
+#     .outputMode("append") \
+#     .start()\
+#     .awaitTermination()
+
+aggregated_stream.writeStream \
     .format("console") \
-    .outputMode("append") \
+    .outputMode("update") \
+    .option("truncate", "false")\
     .start()\
     .awaitTermination()
