@@ -112,14 +112,17 @@ session = connect_to_cassandra(
 )
 
 create_and_set_keyspace(keyspace="crypto", session=session)
+
 # session.execute("DROP TABLE IF EXISTS crypto_prices")
+# session.execute("DROP TABLE IF EXISTS crypto_prices_agg")
+
 create_raw_cassandra_table(session=session)
 create_agg_cassandra_table(session=session)
 
 
 ## Testing results went to DB
 res = session.execute("""
-SELECT * FROM crypto_prices limit 100;
+SELECT * FROM crypto_prices limit 10;
 """)
 
 print(res)
@@ -127,7 +130,7 @@ for row in res:
     print(row)
 
 res = session.execute("""
-SELECT * FROM crypto_prices_agg limit 100;
+SELECT * FROM crypto_prices_agg limit 10;
 """)
 
 print(res)
