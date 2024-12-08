@@ -16,19 +16,29 @@ KAFKA_SERVER = getenv("KAFKA_SERVER")
 KAFKA_PORT = getenv("KAFKA_PORT")
 KAFKA_TOPIC_NAME = getenv("KAFKA_TOPIC_NAME")
 
-schema = StructType([StructField("message", StringType(), True)])
+with open("Producer/src/schema/prices.avsc", "r") as schema_file:
+    schema = schema_file.read()
 
 packages = [
     "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3",
     "org.apache.spark:spark-avro_2.12:3.5.3",
+    "com.datastax.spark:spark-cassandra-connector_2.12:3.5.1"
 ]
 
 spark =  SparkSession\
     .builder\
     .appName("FinanceStream")\
-    .master("spark://localhost:7077")\
     .config("spark.jars.packages", ",".join(packages))\
     .getOrCreate()
+
+logger.info('Spark connection created successfully.')
+
+    #  .config('spark.cassandra.connection.host', 'localhost')\
+
+    # .config("spark.executor.memory", "512m")\
+    # .config("spark.executor.cores", "1")\
+    # .config("spark.driver.cores", "1")\
+
 
 kafka_stream = spark\
     .readStream\
@@ -37,14 +47,16 @@ kafka_stream = spark\
     .option("subscribe", KAFKA_TOPIC_NAME)\
     .option("startingOffsets", "earliest")\
     .load()
+logger.info("Kafka dataframe created successfully")
 
+avro_stream = kafka_stream\
+            .select(from_avro("value", schema).alias("data"))
+avro_stream.printSchema()
 
-# Doesnt work yet
-avro_stream = kafka_stream.selectExpr("CAST(value AS BINARY)")\
-    .select(from_avro("value", schema).alias("data"))\
-    .select("data.message")
+# Write stream to console for testing
+query = avro_stream.writeStream \
+    .format("console") \
+    .outputMode("append") \
+    .start()
 
-
-print(avro_stream)
-
-
+query.awaitTermination()
