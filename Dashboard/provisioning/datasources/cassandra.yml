@@ -1,0 +1,22 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: Apache Cassandra
+
+datasources:
+  - name: Apache Cassandra
+    type: hadesarchitect-cassandra-datasource
+    access: proxy
+    url: cassandra:9042
+    jsonData:
+      consistency: ONE
+      keyspace: crypto
+      user: cassandra
+    secureJsonData:
+      tlsCACert: '...'
+      tlsClientCert: '...'
+      tlsClientKey: '...'
+      password: cassandra
+      basicAuthPassword: cassandra
+    version: 1
+    editable: false 

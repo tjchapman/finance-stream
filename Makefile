@@ -5,12 +5,12 @@ tidy:
 	ruff format
 	ruff check
 
-setup-cassandra:
+db:
 	python Cassandra/src/Cassandra.py
 
-produce-kafka:
+produce:
 	python Producer/src/FinanceProducer.py
 
-process-spark:
+process:
 	python Processor/src/SparkProcessor.py
 

@@ -60,6 +60,7 @@ class SparkProcessor:
             .option("kafka.bootstrap.servers", f"{self.KAFKA_SERVER}:{self.KAFKA_PORT}")\
             .option("subscribe", self.KAFKA_TOPIC_NAME)\
             .option("startingOffsets", "earliest")\
+            .option("failOnDataLoss", "false")\
             .load()
         logger.info("Kafka dataframe created successfully")
         return 
