@@ -177,10 +177,13 @@ services:
     build:
       context: ./Dashboard
       dockerfile: Dockerfile
+    depends_on: 
+      - cassandra_db
+    volumes:
+    - ./Dashboard/provisioning/datasources:/etc/grafana/provisioning/datasources/
+    - ./Dashboard/provisioning/dashboards:/etc/grafana/provisioning/dashboards/
     ports:
       - '9000:3000'
-    volumes:
-      - grafana-storage:/var/lib/grafana
     networks:
       - confluent
 
