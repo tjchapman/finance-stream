@@ -9,6 +9,7 @@ db:
 	python Cassandra/src/Cassandra.py
 
 produce:
+	python Cassandra/src/Cassandra.py
 	python Producer/src/FinanceProducer.py
 
 process:
