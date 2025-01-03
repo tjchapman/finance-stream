@@ -15,3 +15,7 @@ produce:
 process:
 	python Processor/src/SparkProcessor.py
 
+infra:
+	docker compose up -d
+
+

@@ -129,17 +129,36 @@ services:
     networks:
       - confluent
 
-  cassandra_db:
+  cassandra-db:
     image: cassandra:latest
     hostname: cassandra
     container_name: cassandra
     ports:
-      - '9042:9042'
+      - "9042:9042" 
     environment:
       - MAX_HEAP_SIZE=512M
       - HEAP_NEWSIZE=100M
       - CASSANDRA_USERNAME=cassandra
       - CASSANDRA_PASSWORD=cassandra
+    volumes:
+      - ./Database/init-db.cql:/init-db.cql
+    healthcheck:
+      test: ["CMD", "cqlsh", "-u cassandra", "-p cassandra" ,"-e describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - confluent
+
+  cassandra-init:
+    image: cassandra:latest
+    container_name: cassandra-init
+    depends_on:
+      cassandra-db:
+        condition: service_healthy
+    volumes:
+      - ./Database/init-db.cql:/init-db.cql
+    entrypoint: [ "sh", "-c", "cqlsh cassandra -f /init-db.cql" ]
     networks:
       - confluent
 
@@ -150,7 +169,7 @@ services:
       context: ./Dashboard
       dockerfile: Dockerfile
     depends_on: 
-      - cassandra_db
+      - cassandra-db
     volumes:
     - ./Dashboard/provisioning/datasources:/etc/grafana/provisioning/datasources/
     - ./Dashboard/provisioning/dashboards:/etc/grafana/provisioning/dashboards/
