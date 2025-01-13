@@ -1,5 +1,8 @@
-# Crypto Real-Time Data Stream
+# Cryptocurrency Real-Time Data Stream
 
+A real-time cryptocurrency streaming pipeline that pulls ticker information from a Finnhub websocket. The data is pushed to a Kafka topic where it is processed by a Spark worker (using PySpark) and written to a Cassandra table. A Grafana dashboard reads from Cassandra and publishes the currency price and volume over time, refreshing every second. 
+
+All infrastructure is hosted in Docker. The Producer and Spark Processor run in a Poetry controlled virtual env. 
 
 ## Requirements:
 - Finnhub API key
@@ -32,3 +35,5 @@ The dashboard will refresh every second and update automatically.
 ### 5. To exit:
 Exit both terminals (ctrl + c in each) and run ```make down``` to tear down the Docker infrastructure. 
 
+## Data Flow Diagram
+![alt text](finance-stream.drawio.png)
